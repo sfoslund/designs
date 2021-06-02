@@ -208,8 +208,8 @@ New MSBuild properties:
      <ApplicationManifest>app1.manifest</ApplicationManifest>
 +    <ApplicationVisualStyles>[true|false, default=true]</ApplicationVisualStyles>
 +    <ApplicationUseCompatibleTextRendering>[true|false, default=false]</ApplicationUseCompatibleTextRendering>
-+    <ApplicationFontName>[Font family name, string, default='', i.e. Control.DefaultFont]</ApplicationFontName>
-+    <ApplicationFontSize>[Font size, float, default=9]</ApplicationFontSize>
++    <ApplicationFont>[equivalent to Font.ToString(), string, default='', i.e. Control.DefaultFont]</ApplicationFontName>
++    <ApplicationFontResx>[name of resource that hold an equivalent to Font.ToString(), string, default='']</ApplicationFontSize>
 +    <ApplicationHighDpiMode>[dpi mode, string/HighDpiMode enum value, default=PerMonitorV2]</ApplicationHighDpiMode>
   </PropertyGroup>
 ```
@@ -237,7 +237,7 @@ After deliberations and discussions we propose the settings to be stored as MSBu
 
 
 
-The runtime portion will leverage Roslyn source generators to read MSBuild configurations, and emit code for the necessary API, e.g. call `Application.SetHighDpiMode(HighDpiMode.PerMonitorV2)` and `Application.SetDefaultFont("Arial, 14pt")`.<br/>
+The runtime portion will leverage Roslyn source generators to read MSBuild configurations, and emit code for the necessary API, e.g. call `Application.SetHighDpiMode(HighDpiMode.PerMonitorV2)` and `Application.SetDefaultFont("Arial", 14f)`.<br/>
 :warning: The screenshot is dated, provided for concept demonstration purposes only:
 ![image](https://user-images.githubusercontent.com/4403806/114354384-8488b300-9bb1-11eb-855a-b58e80953793.png)
 
@@ -267,6 +267,39 @@ When you find yourself having to explain something in a GitHub discussion or in
 email, consider to update your proposal and link to your answer instead. This
 way, you avoid having to explain the same thing over and over again.
 -->
+
+### Font Configuration
+
+#### Default scenario
+
+Initial thinking was to allow configuration of only [`Font.FamilyName`](https://docs.microsoft.com/dotnet/api/system.drawing.font.fontfamily) and [`Font.Size`](https://docs.microsoft.com/dotnet/api/system.drawing.font.size) properties. However these two properties may be insufficient in some use cases, which otherwise would be achievable if `Application.SetDefaultFont(Font)` API was invoked manually.
+E.g.:
+
+```cs
+Application.SetDefaultFont(new Font(new FontFamily("Calibri"), 11f, FontStyle.Italic | FontStyle.Bold, GraphicsUnit.Point));
+```
+
+It would rather be impractical to provide an MSBuild properties for each argument the `Font` constructor takes, and instead the proposal is to configure fonts via a single property `ApplicationFont`. This property will have a format equivalent to the output of `Font.ToString()` API, where the first two tokens required, and all other tokens optional; e.g.:
+
+```
+Name=fontName, Size=size[, Units=units[, GDiCharSet=gdiCharSet[, GdiVerticalFont=boolean]]]
+```
+
+#### Locale aware font configuration
+
+In addition to this, it is possible that [`Font.FamilyName`](https://docs.microsoft.com/dotnet/api/system.drawing.font.fontfamily) may be locale sensitive, i.e. a different font family (and size) could be used in different regions of the world. To address this use case the proposal is to add another MSBuild property `ApplicationFontResx`, that will contain the name of a localizable resource that contains [`Font.FamilyName`](https://docs.microsoft.com/dotnet/api/system.drawing.font.fontfamily) and [`Font.Size`](https://docs.microsoft.com/dotnet/api/system.drawing.font.size) properties for each locale that requires it.
+
+The order of precedence is as follows:
+- `ApplicationFontResx`, if present
+- `ApplicationFont`.
+
+#### Error scenarios
+
+* If the value of `ApplicationFont` resource can't  be parsed, this will result in a compilation error.
+* If `ApplicationFontResx` contains an invalid resource name, this will result in a compilation error.
+* If the value of `ApplicationFontResx` resource can't  be parsed, this will result in a runtime error.
+
+
 
 ### How to resolve dpi settings?
 
