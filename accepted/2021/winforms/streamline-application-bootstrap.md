@@ -355,3 +355,8 @@ public static IHostBuilder CreateHostBuilder() =>
             // ...
         });
 ```
+
+
+### Does this approach align/conflict with other UI SDKs, e.g. WPF or WinUI?
+
+Other UI SDKs (e.g. WPF and UWP) are XAML-based, and their designers read the same XAML files as their runtime, and run essentially the same app just in a different context (shell/window integration, app model). WinUI doesn't currently have a designer.
